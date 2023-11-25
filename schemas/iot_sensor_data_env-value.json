@@ -1,0 +1,47 @@
+{
+  "name": "env",
+  "namespace": "org.apache.flink.avro.generated",
+  "type": "record",
+  "fields": [
+    {
+      "default": null,
+      "name": "vendor",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "default": null,
+      "name": "mac_address",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "default": null,
+      "name": "timestamp",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "default": null,
+      "name": "temperature",
+      "type": [
+        "null",
+        "double"
+      ]
+    },
+    {
+      "default": null,
+      "name": "humidity",
+      "type": [
+        "null",
+        "double"
+      ]
+    }
+  ]
+}

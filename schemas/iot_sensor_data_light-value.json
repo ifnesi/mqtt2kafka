@@ -1,0 +1,39 @@
+{
+  "name": "light",
+  "namespace": "org.apache.flink.avro.generated",
+  "type": "record",
+  "fields": [
+    {
+      "default": null,
+      "name": "vendor",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "default": null,
+      "name": "mac_address",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "default": null,
+      "name": "timestamp",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    {
+      "default": null,
+      "name": "lux",
+      "type": [
+        "null",
+        "double"
+      ]
+    }
+  ]
+}

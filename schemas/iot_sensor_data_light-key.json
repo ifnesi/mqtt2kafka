@@ -1,0 +1,11 @@
+{
+  "name": "light",
+  "namespace": "org.apache.flink.avro.generated",
+  "type": "record",
+  "fields": [
+    {
+      "name": "mqtt_topic",
+      "type": "string"
+    }
+  ]
+}
