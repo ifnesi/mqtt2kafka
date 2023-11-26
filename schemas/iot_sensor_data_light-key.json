@@ -4,7 +4,7 @@
   "type": "record",
   "fields": [
     {
-      "name": "mqtt_topic",
+      "name": "MQTT_Topic",
       "type": "string"
     }
   ]

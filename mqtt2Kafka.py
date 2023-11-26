@@ -1,19 +1,3 @@
-# -*- coding: utf-8 -*-
-#
-# Copyright 2022 Confluent Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import re
 import ssl
 import sys
@@ -29,17 +13,14 @@ import paho.mqtt.client as mqtt
 
 from importlib import import_module
 from confluent_kafka.serialization import SerializationContext, MessageField
-from confluent_kafka.schema_registry.avro import AvroDeserializer
-from confluent_kafka.schema_registry.protobuf import ProtobufDeserializer
-from confluent_kafka.schema_registry.json_schema import JSONDeserializer
 
-from parsers import processMessage
-from utils import Kafka, sys_exc
+from utils import Kafka, sys_exc, getSerdesSchema, processMQTTMessage
 
 
 class MQTT:
     """
     MQTT Class: Set MQTT Producer/Consumer clients and start all threads
+    Main class to be called at start, all threads will be spawn up here
     """
 
     PROTOCOLS = {
@@ -113,43 +94,87 @@ class MQTT:
             )
 
         # Get MQ routing rules (data received from MQTT to Kafka: Source connection)
-        self._mq_routing_rules = self.config.get(
-            "mq_routing_rules",
+        self._routing_rules_source = self.config.get(
+            "routing_rules_source",
             dict(),
         )
-        for topic in self._mq_routing_rules.keys():
-            # Topics regex
-            self._mq_routing_rules[topic]["topic_regex"] = re.compile(
+        for topic in self._routing_rules_source.keys():
+            # MQTT Topic regex
+            self._routing_rules_source[topic]["topic_regex"] = re.compile(
                 topic.replace("#", ".*").replace("+/", ".*?/").replace("+", ".*")
             )
-            # Key serialiser
-            self._mq_routing_rules[topic][
-                "kafka_schema_key_client"
-            ] = kafka.setSerialiser(
-                self._mq_routing_rules[topic].get("kafka_schema_key_type"),
-                self._mq_routing_rules[topic].get("kafka_schema_key_file"),
+            # MQTT topic deserialiser
+            (
+                self._routing_rules_source[topic]["mq_deserialiser_topic_class"],
+                self._routing_rules_source[topic]["mq_deserialiser_topic_schema"],
+            ) = getSerdesSchema(
+                self._routing_rules_source[topic],
+                "mq_deserialiser_topic",
             )
-            # Value serialiser
-            self._mq_routing_rules[topic][
-                "kafka_schema_value_client"
-            ] = kafka.setSerialiser(
-                self._mq_routing_rules[topic].get("kafka_schema_value_type"),
-                self._mq_routing_rules[topic].get("kafka_schema_value_file"),
+            # MQTT payload deserialiser
+            (
+                self._routing_rules_source[topic]["mq_deserialiser_payload_class"],
+                self._routing_rules_source[topic]["mq_deserialiser_payload_schema"],
+            ) = getSerdesSchema(
+                self._routing_rules_source[topic],
+                "mq_deserialiser_payload",
+            )
+            # Kafka set headers
+            self._routing_rules_source[topic][
+                "kafka_set_headers_class"
+            ] = import_module(
+                self._routing_rules_source[topic].get("kafka_set_headers", "tools")
+            ).Tools()
+            # Kafka key serialiser
+            (
+                self._routing_rules_source[topic]["kafka_serialiser_key_class"],
+                self._routing_rules_source[topic]["kafka_serialiser_key_schema"],
+            ) = getSerdesSchema(
+                self._routing_rules_source[topic],
+                "kafka_serialiser_key",
+            )
+            # Kafka value serialiser
+            (
+                self._routing_rules_source[topic]["kafka_serialiser_value_class"],
+                self._routing_rules_source[topic]["kafka_serialiser_value_schema"],
+            ) = getSerdesSchema(
+                self._routing_rules_source[topic],
+                "kafka_serialiser_value",
             )
 
         # Get Kafka routing rules (data received from Kafka to MQTT: Sink connection)
-        for topic in kafka._kafka_routing_rules.keys():
-            # Key serialiser
-            kafka._kafka_routing_rules[topic][
-                "kafka_schema_key_client"
-            ] = kafka.setDeserialiser(
-                kafka._kafka_routing_rules[topic].get("kafka_schema_key_type")
+        for topic in kafka._routing_rules_sink.keys():
+            # Kafka key deserialiser
+            (
+                kafka._routing_rules_sink[topic]["kafka_deserialiser_key_class"],
+                _,
+            ) = getSerdesSchema(
+                kafka._routing_rules_sink[topic],
+                "kafka_deserialiser_key",
             )
-            # Value serialiser
-            kafka._kafka_routing_rules[topic][
-                "kafka_schema_value_client"
-            ] = kafka.setDeserialiser(
-                kafka._kafka_routing_rules[topic].get("kafka_schema_value_type")
+            # Value key deserialiser
+            (
+                kafka._routing_rules_sink[topic]["kkafka_deserialiser_value_class"],
+                _,
+            ) = getSerdesSchema(
+                kafka._routing_rules_sink[topic],
+                "kafka_deserialiser_value",
+            )
+            # MQTT topic serialiser
+            (
+                kafka._routing_rules_sink[topic]["mq_serialiser_topic_class"],
+                _,
+            ) = getSerdesSchema(
+                kafka._routing_rules_sink[topic],
+                "mq_serialiser_topic",
+            )
+            # MQTT payload serialiser
+            (
+                kafka._routing_rules_sink[topic]["mq_serialiser_payload_class"],
+                _,
+            ) = getSerdesSchema(
+                kafka._routing_rules_sink[topic],
+                "mq_serialiser_payload",
             )
 
         # Connect to MQTT broker (subscription to topics is on_connect)
@@ -205,9 +230,9 @@ class MQTT:
         consumer,
         kafka: Kafka,
         stop: bool,
-    ) -> None:
+    ) -> None:  # TBD (ADJUST THIS PART)
         """
-        Thread running each Kafka consumer
+        Thread running each Kafka consumer (single consumer group)
         """
         next_attempt = 0
         while True:
@@ -222,7 +247,7 @@ class MQTT:
                         if msg.error():
                             logging.error(msg.error())
                         else:
-                            topic_routing_rules = kafka._kafka_routing_rules.get(
+                            topic_routing_rules = kafka._routing_rules_sink.get(
                                 msg.topic(),
                                 dict(),
                             )
@@ -452,12 +477,12 @@ class MQTT:
         if not self._mqtt_client.is_connected():
             self._mqtt_connect()
 
-        for topic, params in self._mq_routing_rules.items():
+        for topic, params in self._routing_rules_source.items():
             qos = params.get("qos", 0)
             self._mqtt_client.subscribe(topic, qos)
             transform_class_reference = params.get("parser")
             if transform_class_reference is not None:
-                self._mq_routing_rules[topic]["mod"] = import_module(
+                self._routing_rules_source[topic]["mod"] = import_module(
                     transform_class_reference
                 ).Parser()
 
@@ -490,9 +515,8 @@ class MQTT:
         msg,
     ) -> None:
         self._handler_can_exit = False
-        processMessage(
+        processMQTTMessage(
             self,
-            mqtt,
             obj,
             msg,
         )
