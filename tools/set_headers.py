@@ -21,5 +21,5 @@ class Tools(ToolsBase):
                 "mqtt.duplicate": "true" if msg.dup > 0 else "false",
             }
         except Exception:
-            logging.error(sys.exc_info())
+            logging.error(sys_exc(sys.exc_info()))
             return dict()

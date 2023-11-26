@@ -1,6 +1,5 @@
 import re
 import sys
-import json
 import logging
 
 from typing import Union, Tuple
