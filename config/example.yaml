@@ -31,11 +31,10 @@ routing_rules_sink:  # Messages from Kafka to MQTT
   "iot_data_reverse":  # Kafka topic to subscribe to
     encoding: "utf-8"  # utf-8 is the default, for all options available see column 'Codec' at https://docs.python.org/3/library/codecs.html#standard-encodings
     kafka_deserialiser_key: serdes.std_string  # {relative_path_to_module}. In addition to the ones above: cflt_avro (default), cflt_json
-    kafka_deserialiser_value: serdes.cflt_avro  # {relative_path_to_module}. In addition to the ones above: cflt_avro (default), cflt_json
-    mq_serialiser_topic: serdes.std_string  # {relative_path_to_module}, e.g. serdes.std_string (default), serdes.std_json, serdes.number_int, serdes.number_float, serdes.std_xml, serdes.cflt_json, serdes.cflt_avro
+    kafka_deserialiser_value: serdes.std_json  # {relative_path_to_module}. In addition to the ones above: cflt_avro (default), cflt_json
     mq_serialiser_payload: serdes.std_json  # {relative_path_to_module}, e.g. serdes.std_string (default), serdes.std_json, serdes.number_int, serdes.number_float, serdes.std_xml, serdes.cflt_json, serdes.cflt_avro
-    mq_topic: key # key, key.{field_name}, value, value.{field_name}, header.{field_name}
-    mq_payload: value # key, key.{field_name}, value, value.{field_name}, header.{field_name}
+    mq_topic: /my_prefix/+$key # $key, $value, $value.{field_name}, $header.{field_name}. Use "+" to concatenate strings, for example: /my_prefix/+$value.vendor/+$value.mac_address
+    mq_payload: $value # $key, $key.{field_name}, $value, $value.{field_name}, $header.{field_name}
     mq_qos: 0
 
 
